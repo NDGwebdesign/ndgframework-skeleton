@@ -1,14 +1,14 @@
 #!/usr/bin/env php
 <?php
 
-require __DIR__ . '/core/Env.php';
-require __DIR__ . '/core/Database.php';
-require __DIR__ . '/core/Schema.php';
-require __DIR__ . '/core/Migration.php';
-require __DIR__ . '/core/Blueprint.php';
-require __DIR__ . '/core/Router.php';
-require __DIR__ . '/core/View.php';
-require __DIR__ . '/core/ComponentMarketplace.php';
+$autoload = __DIR__ . '/vendor/autoload.php';
+
+if (!file_exists($autoload)) {
+    fwrite(STDERR, "Autoload file not found. Run: composer install\n");
+    exit(1);
+}
+
+require $autoload;
 
 Env::load(__DIR__ . '/.env');
 
