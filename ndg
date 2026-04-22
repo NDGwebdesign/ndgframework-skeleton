@@ -1,0 +1,185 @@
+#!/usr/bin/env php
+<?php
+
+require __DIR__ . '/core/Env.php';
+require __DIR__ . '/core/Database.php';
+require __DIR__ . '/core/Schema.php';
+require __DIR__ . '/core/Migration.php';
+require __DIR__ . '/core/Blueprint.php';
+require __DIR__ . '/core/Router.php';
+require __DIR__ . '/core/View.php';
+require __DIR__ . '/core/ComponentMarketplace.php';
+
+Env::load(__DIR__ . '/.env');
+
+$command = $argv[1] ?? null;
+$name = $argv[2] ?? null;
+
+switch ($command) {
+    //make commmands
+    case 'make:migration':
+        Migration::make($name);
+        break;
+    case 'make:view':
+        View::make($name);
+        break;
+    case 'migrate':
+        Migration::migrate();
+        break;
+
+    case 'migrate:rollback':
+        Migration::rollback();
+        break;
+
+    case 'components':
+        handleComponentsCommand($argv);
+        break;
+
+    case 'make:mvc':
+        mvc($argv);
+        break;
+
+    default:
+        echo "NDG CLI\n";
+        echo "Commands:\n";
+        echo "  php ndg make:migration <name>\n";
+        echo "  php ndg migrate\n";
+        echo "  php ndg migrate:rollback\n";
+        echo "  php ndg make:view <name>\n";
+        echo "  php ndg components [list|search|install]\n";
+        echo "  php ndg make:mvc <name>\n";
+        break;
+}
+
+function handleComponentsCommand(array $argv): void
+{
+    $sub = $argv[2] ?? 'list';
+    $apiUrl = trim((string) Env::get('COMPONENTS_API_URL', ''));
+    if ($apiUrl === '') {
+        $apiUrl = 'https://ndg-webdesign.net/api/components';
+    }
+    $targetDirectory = __DIR__ . '/resources/components';
+
+    $marketplace = new ComponentMarketplace($apiUrl, $targetDirectory);
+
+    try {
+        if ($sub === 'list') {
+            $components = $marketplace->fetchComponents();
+
+            if (empty($components)) {
+                echo "Geen components gevonden.\n";
+                return;
+            }
+
+            echo "Beschikbare components:\n";
+            foreach ($components as $component) {
+                $name = $component['name'] ?? 'onbekend';
+                $version = $component['version'] ?? 'n/a';
+                $description = $component['description'] ?? '';
+                echo "- {$name} (v{$version})";
+
+                if ($description !== '') {
+                    echo " - {$description}";
+                }
+
+                echo "\n";
+            }
+
+            return;
+        }
+
+        if ($sub === 'search') {
+            $query = $argv[3] ?? '';
+
+            if (trim($query) === '') {
+                echo "Gebruik: php ndg components search <zoekterm>\n";
+                return;
+            }
+
+            $results = $marketplace->search($query);
+
+            if (empty($results)) {
+                echo "Geen componenten gevonden voor '{$query}'.\n";
+                return;
+            }
+
+            echo "Zoekresultaten voor '{$query}':\n";
+            foreach ($results as $component) {
+                $name = $component['name'] ?? 'onbekend';
+                $version = $component['version'] ?? 'n/a';
+                $description = $component['description'] ?? '';
+                echo "- {$name} (v{$version})";
+
+                if ($description !== '') {
+                    echo " - {$description}";
+                }
+
+                echo "\n";
+            }
+
+            return;
+        }
+
+        if ($sub === 'install') {
+            $name = $argv[3] ?? '';
+
+            if (trim($name) === '') {
+                echo "Gebruik: php ndg components install <component-naam>\n";
+                return;
+            }
+
+            $path = $marketplace->install($name);
+
+            echo "Component '{$name}' succesvol geinstalleerd op:\n";
+            echo $path . "\n";
+            return;
+        }
+
+        echo "Onbekende subcommand: {$sub}\n";
+        echo "Gebruik: php ndg components [list|search|install]\n";
+    } catch (Throwable $e) {
+        echo "Marketplace fout: " . $e->getMessage() . "\n";
+    }
+}
+
+function mvc(array $argv): void
+{
+    $name = $argv[2] ?? null;
+
+    if (!$name) {
+        echo "Gebruik: php ndg make:mvc <Naam>\n";
+        return;
+    }
+
+    $controllerName = ucfirst($name) . 'Controller';
+    $modelName = ucfirst($name);
+    $viewName = strtolower($name);
+
+    // Maak controller
+    $controllerPath = __DIR__ . "/app/Controllers/{$controllerName}.php";
+    if (!file_exists($controllerPath)) {
+        file_put_contents($controllerPath, "<?php\n\nclass {$controllerName} extends Controller\n{\n    // Controller code hier\n}\n");
+        echo "Controller gemaakt: {$controllerPath}\n";
+    } else {
+        echo "Controller bestaat al: {$controllerPath}\n";
+    }
+
+    // Maak model
+    $modelPath = __DIR__ . "/app/Models/{$modelName}.php";
+    if (!file_exists($modelPath)) {
+        file_put_contents($modelPath, "<?php\n\nclass {$modelName} extends Model\n{\n    protected static \$table = '" . strtolower($name) . "';\n}\n");
+        echo "Model gemaakt: {$modelPath}\n";
+    } else {
+        echo "Model bestaat al: {$modelPath}\n";
+    }
+
+    // Maak view
+    $viewDirectory = __DIR__ . "/resources/view/{$viewName}";
+    if (!is_dir($viewDirectory)) {
+        mkdir($viewDirectory);
+        file_put_contents("{$viewDirectory}/index.php", "<x-main-layout>\n\n<!-- View code hier -->\n\n</x-main-layout>");
+        echo "View gemaakt: {$viewDirectory}/index.php\n";
+    } else {
+        echo "View bestaat al: {$viewDirectory}\n";
+    }
+}

@@ -1,0 +1,21 @@
+{
+  "name": "ndgframework",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "vite",
+    "build": "vite build"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "@tailwindcss/vite": "^4.1.18",
+    "npx": "^10.2.2",
+    "tailwindcss": "^4.1.18",
+    "vite": "^7.3.1"
+  }
+}

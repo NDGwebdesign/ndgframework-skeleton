@@ -1,0 +1,162 @@
+name: Split Core And Skeleton
+
+on:
+  workflow_dispatch:
+    inputs:
+      core_repo:
+        description: "Target repo for core Dafrijder"
+        required: true
+        default: "NDGwebdesign/ndgframework-core"
+      skeleton_repo:
+        description: "Target repo for skeleton Dafrijder"
+        required: true
+        default: "NDGwebdesign/ndgframework-skeleton"
+      default_branch:
+        description: "Default branch in target repos"
+        required: true
+        default: "main"
+      create_repos:
+        description: "Create target repos if they do not exist"
+        required: true
+        default: "false"
+  push:
+    branches:
+      - "main"
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  split:
+    runs-on: ubuntu-latest
+    env:
+      CORE_REPO: ${{ github.event.inputs.core_repo || vars.CORE_REPO }}
+      SKELETON_REPO: ${{ github.event.inputs.skeleton_repo || vars.SKELETON_REPO }}
+      DEFAULT_BRANCH: ${{ github.event.inputs.default_branch || vars.DEFAULT_BRANCH || 'main' }}
+      CREATE_REPOS: ${{ github.event.inputs.create_repos || vars.CREATE_REPOS || 'false' }}
+      GH_TOKEN: ${{ secrets.SPLIT_REPO_TOKEN }}
+      TOKEN: ${{ secrets.SPLIT_REPO_TOKEN }}
+
+    steps:
+      - name: Validate required settings
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${TOKEN}" ]]; then
+            echo "Missing secret: SPLIT_REPO_TOKEN"
+            exit 1
+          fi
+
+          if [[ -z "${CORE_REPO}" ]]; then
+            echo "Missing core repo. Set workflow input core_repo or repository variable CORE_REPO."
+            exit 1
+          fi
+
+          if [[ -z "${SKELETON_REPO}" ]]; then
+            echo "Missing skeleton repo. Set workflow input skeleton_repo or repository variable SKELETON_REPO."
+            exit 1
+          fi
+
+      - name: Validate token access to target repositories
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if ! gh repo view "${CORE_REPO}" >/dev/null 2>&1; then
+            echo "Token has no access to core repo: ${CORE_REPO}"
+            exit 1
+          fi
+
+          if ! gh repo view "${SKELETON_REPO}" >/dev/null 2>&1; then
+            echo "Token has no access to skeleton repo: ${SKELETON_REPO}"
+            exit 1
+          fi
+
+      - name: Checkout source repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Configure git
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Optionally create target repositories
+        if: env.CREATE_REPOS == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          create_if_missing() {
+            local repo="$1"
+            if gh repo view "$repo" >/dev/null 2>&1; then
+              echo "Repo already exists: $repo"
+              return 0
+            fi
+            echo "Creating repo: $repo"
+            gh repo create "$repo" --private --confirm
+          }
+
+          create_if_missing "${CORE_REPO}"
+          create_if_missing "${SKELETON_REPO}"
+
+      - name: Split and push core repository
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ ! -d core ]]; then
+            echo "Directory core/ not found in source repository."
+            exit 1
+          fi
+
+          git subtree split --prefix=core -b split-core
+          git push --force "https://x-access-token:${TOKEN}@github.com/${CORE_REPO}.git" "split-core:${DEFAULT_BRANCH}"
+
+      - name: Push release tag to core repository
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG_NAME="${GITHUB_REF_NAME}"
+          git push "https://x-access-token:${TOKEN}@github.com/${CORE_REPO}.git" "refs/tags/${TAG_NAME}:refs/tags/${TAG_NAME}" || true
+
+      - name: Sync skeleton repository (snapshot without core/)
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          SKELETON_DIR="${RUNNER_TEMP}/skeleton"
+          rm -rf "${SKELETON_DIR}"
+          git clone "https://x-access-token:${TOKEN}@github.com/${SKELETON_REPO}.git" "${SKELETON_DIR}"
+
+          rsync -a --delete \
+            --exclude ".git" \
+            --exclude "core" \
+            --exclude "node_modules" \
+            --exclude "public/build" \
+            ./ "${SKELETON_DIR}/"
+
+          cd "${SKELETON_DIR}"
+
+          if [[ -z "$(git status --porcelain)" ]]; then
+            echo "No skeleton changes to commit."
+            exit 0
+          fi
+
+          git add -A
+          git commit -m "chore: sync skeleton from ${GITHUB_REPOSITORY}@${GITHUB_SHA}"
+          git push origin "HEAD:${DEFAULT_BRANCH}"
+
+      - name: Push release tag to skeleton repository
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG_NAME="${GITHUB_REF_NAME}"
+          git push "https://x-access-token:${TOKEN}@github.com/${SKELETON_REPO}.git" "refs/tags/${TAG_NAME}:refs/tags/${TAG_NAME}" || true
