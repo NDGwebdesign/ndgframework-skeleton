@@ -18,6 +18,19 @@ $directories = [
     $root . DIRECTORY_SEPARATOR . 'public' . DIRECTORY_SEPARATOR . 'storage'
 ];
 
+//npm install
+exec('npm install', $output, $returnVar);
+if ($returnVar !== 0) {
+    echo "npm install failed. Please run 'npm install' manually." . PHP_EOL;
+    exit(1);
+}
+//npm run build
+exec('npm run build', $output, $returnVar);
+if ($returnVar !== 0) {
+    echo "npm run build failed. Please run 'npm run build' manually." . PHP_EOL;
+    exit(1);
+}
+
 //delete .github directory if exists
 $githubDir = $root . DIRECTORY_SEPARATOR . '.github';
 if (is_dir($githubDir)) {
