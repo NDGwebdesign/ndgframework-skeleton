@@ -18,6 +18,32 @@ $directories = [
     $root . DIRECTORY_SEPARATOR . 'public' . DIRECTORY_SEPARATOR . 'storage'
 ];
 
+//delete .github directory if exists
+$githubDir = $root . DIRECTORY_SEPARATOR . '.github';
+if (is_dir($githubDir)) {
+    function deleteDirectory($dir) {
+        if (!is_dir($dir)) {
+            return;
+        }
+        $objects = scandir($dir);
+        foreach ($objects as $object) {
+            if ($object === '.' || $object === '..') {
+                continue;
+            }
+            $path = $dir . DIRECTORY_SEPARATOR . $object;
+            if (is_dir($path)) {
+                deleteDirectory($path);
+            } else {
+                unlink($path);
+            }
+        }
+        rmdir($dir);
+    }
+
+    deleteDirectory($githubDir);
+    echo "Deleted .github directory" . PHP_EOL;
+}
+
 foreach ($directories as $directory) {
     if (!is_dir($directory)) {
         mkdir($directory, 0775, true);
