@@ -1,0 +1,22 @@
+{
+  "name": "ndgwebdesign/ndgframework-skeleton",
+  "description": "Application skeleton for NDG Framework",
+  "type": "project",
+  "license": "MIT",
+  "require": {
+    "php": "^8.2",
+    "ndgwebdesign/ndgframework-core": "^0.1"
+  },
+  "scripts": {
+    "post-create-project-cmd": [
+      "@php scripts/post-create-project.php"
+    ],
+    "post-install-cmd": [
+      "@php scripts/post-create-project.php"
+    ]
+  },
+  "config": {
+    "sort-packages": true,
+    "allow-plugins": {}
+  }
+}
