@@ -1,5 +1,7 @@
 <?php
 
+define('BASE_PATH', dirname(__DIR__));
+
 require __DIR__.'/../vendor/autoload.php';
 
 // Register custom autoloader for app classes
