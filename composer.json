@@ -5,7 +5,7 @@
 	"license": "MIT",
 	"require": {
 		"php": "^8.2",
-		"ndgwebdesign/ndgframework-core": "v0.1.2"
+		"ndgwebdesign/ndgframework-core": "v0.1.4"
 	},
 	"repositories": [
 		{
