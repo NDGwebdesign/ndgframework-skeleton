@@ -3,6 +3,8 @@
 
 $autoload = __DIR__ . '/vendor/autoload.php';
 
+define('BASE_PATH', __DIR__);
+
 if (!file_exists($autoload)) {
     fwrite(STDERR, "Autoload file not found. Run: composer install\n");
     exit(1);
